@@ -85,13 +85,13 @@ class AdGuardProxy:
                 body=body,
             )
         except httpx.HTTPStatusError as e:
-            # If authentication error (401), try to reauthenticate with GL.iNet router
+            # If authentication error (403), try to reauthenticate with GL.iNet router
             # and retry once
-            if e.response.status_code == 401:
+            if e.response.status_code // 100 == 4:
                 logger.info(
                     "Authentication failed, attempting to reauthenticate with GL.iNet router"
                 )
-                logger.debug("Received 401 Unauthorized, initiating reauthentication")
+                logger.debug(f"Received {e.response.status_code}, initiating reauthentication")
                 await self.auth.authenticate()
                 cookies = self.auth.get_auth_cookie()
                 logger.debug("Reauthentication completed, retrying request")
@@ -222,6 +222,9 @@ class AdGuardProxy:
                 logger.debug(f"  Content: {response.json()}")
             except Exception:
                 logger.debug(f"  Content: [non-JSON data, {len(response.content)} bytes]")
+
+        # Remove content-length header since response may have been modified
+        response.headers.pop("content-length", None)
 
         # Create a Starlette response from the httpx response
         return Response(
