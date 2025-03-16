@@ -1,12 +1,12 @@
 """Authentication module for GL.iNet router authentication."""
 
 import hashlib
-from passlib.hash import md5_crypt, sha256_crypt, sha512_crypt
 import time
 from typing import Any, Dict
 
 import httpx
 from loguru import logger
+from passlib.hash import md5_crypt, sha256_crypt, sha512_crypt
 
 from gl_adguard_bridge.config import Settings
 
