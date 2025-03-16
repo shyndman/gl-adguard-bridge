@@ -25,7 +25,24 @@ class RouterAuth:
             settings: Application settings
         """
         self.settings = settings
-        self.client = httpx.AsyncClient()
+
+        # Configure HTTPX client with SSL verification settings
+        if isinstance(self.settings.router_ssl_verify, str):
+            # If it's a string, treat it as a path to a CA bundle
+            logger.info(
+                f"Using custom CA bundle for SSL verification: {self.settings.router_ssl_verify}"
+            )
+            self.client = httpx.AsyncClient(verify=self.settings.router_ssl_verify)
+        elif self.settings.router_ssl_verify is False:
+            # If SSL verification is disabled, log a warning
+            logger.warning("SSL certificate verification is disabled. This is insecure!")
+            self.client = httpx.AsyncClient(verify=False)
+        else:
+            # Default: use system CA certificates
+            logger.debug("Using system CA certificates for SSL verification")
+            self.client = httpx.AsyncClient()
+
+        # Initialize session ID
         self.sid: str = ""
 
     async def authenticate(self) -> str:
@@ -67,6 +84,13 @@ class RouterAuth:
             logger.info("GL.iNet router authentication successful")
             return self.sid
 
+        except httpx.TransportError as e:
+            logger.error(f"SSL error connecting to GL.iNet router: {e}")
+            logger.info(
+                "If the router uses a self-signed certificate, "
+                "set ROUTER_SSL_VERIFY=False or provide a CA bundle"
+            )
+            raise
         except Exception as e:
             logger.error(f"GL.iNet router authentication request failed: {e}")
             raise

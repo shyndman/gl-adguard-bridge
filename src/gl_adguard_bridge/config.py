@@ -1,6 +1,8 @@
 """Configuration module for GL-AdGuard-Bridge."""
 
 import os
+from distutils.util import strtobool
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -21,6 +23,13 @@ class Settings(BaseModel):
         ...,
         description="Password for GL.iNet router authentication"
     )
+    router_ssl_verify: Union[bool, str] = Field(
+        True,
+        description=(
+            "Whether to verify SSL certificates for router connections "
+            "(True, False, or path to CA bundle)"
+        )
+    )
 
     # AdGuard Home settings
     adguard_url: str = Field(..., description="URL of the actual AdGuard Home instance")
@@ -40,7 +49,33 @@ class Settings(BaseModel):
         https://web.archive.org/web/20240121142533/https://dev.gl-inet.com/router-4.x-api/
         The HTTP request path for all APIs is /rpc
         """
-        return f"https://{self.router_host}/rpc"
+        # Use https:// if SSL verification is enabled, otherwise use http://
+        protocol = "https" if self.router_ssl_verify else "http"
+        return f"{protocol}://{self.router_host}/rpc"
+
+
+def _parse_ssl_verify(value: Optional[str]) -> Union[bool, str]:
+    """Parse the SSL verification value from environment variable.
+
+    Args:
+        value: String value from environment variable
+
+    Returns:
+        Boolean or string path to CA bundle
+    """
+    if value is None:
+        return True
+
+    # If value is a path to a file, return it as is
+    if os.path.isfile(value):
+        return value
+
+    # Otherwise, treat it as a boolean
+    try:
+        return bool(strtobool(value))
+    except ValueError:
+        # Default to True for safety
+        return True
 
 
 def get_settings() -> Settings:
@@ -49,6 +84,7 @@ def get_settings() -> Settings:
         router_host=os.environ["ROUTER_HOST"],
         router_username=os.environ.get("ROUTER_USERNAME", "root"),
         router_password=os.environ["ROUTER_PASSWORD"],
+        router_ssl_verify=_parse_ssl_verify(os.environ.get("ROUTER_SSL_VERIFY")),
         adguard_url=os.environ["ADGUARD_URL"],
         host=os.environ.get("HOST", "0.0.0.0"),
         port=int(os.environ.get("PORT", "8000")),

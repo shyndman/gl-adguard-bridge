@@ -31,6 +31,7 @@ The server is configured using environment variables:
 - `ROUTER_HOST`: Hostname or IP address of the GL.iNet router (e.g., 192.168.8.1)
 - `ROUTER_USERNAME`: Username for GL.iNet router authentication (defaults to "root")
 - `ROUTER_PASSWORD`: Password for GL.iNet router authentication
+- `ROUTER_SSL_VERIFY`: SSL certificate verification for the router connection. Set to "false" to disable SSL verification, "true" to use system CA certificates, or specify a path to a custom CA bundle file (default: "true")
 - `ADGUARD_URL`: URL of the actual AdGuard Home instance
 - `LOG_LEVEL`: Logging level (default: INFO)
 - `HOST`: Host to bind the server to (default: 0.0.0.0)
@@ -43,6 +44,7 @@ docker run -p 8000:8000 \
   -e ROUTER_HOST=192.168.8.1 \
   -e ROUTER_PASSWORD=password \
   -e ADGUARD_URL=http://adguard.local \
+  -e ROUTER_SSL_VERIFY=false \  # Only if your router uses a self-signed certificate
   gl-adguard-bridge
 ```
 
