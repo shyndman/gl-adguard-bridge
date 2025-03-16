@@ -1,10 +1,32 @@
 """Configuration module for GL-AdGuard-Bridge."""
 
 import os
-from distutils.util import strtobool
 from typing import Optional, Union
 
 from pydantic import BaseModel, Field
+
+
+def _strtobool(val: str) -> bool:
+    """Convert a string representation of truth to True or False.
+
+    This is a replacement for the deprecated distutils.util.strtobool
+
+    Args:
+        val: String value to convert
+
+    Returns:
+        bool: True if the string represents a true value, False otherwise
+
+    Raises:
+        ValueError: If the string doesn't represent a boolean value
+    """
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError(f"Invalid truth value: {val}")
 
 
 class Settings(BaseModel):
@@ -72,7 +94,7 @@ def _parse_ssl_verify(value: Optional[str]) -> Union[bool, str]:
 
     # Otherwise, treat it as a boolean
     try:
-        return bool(strtobool(value))
+        return bool(_strtobool(value))
     except ValueError:
         # Default to True for safety
         return True
