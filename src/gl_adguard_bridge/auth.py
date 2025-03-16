@@ -64,7 +64,7 @@ class RouterAuth:
             # Step 1: Get challenge parameters
             logger.debug("Step 1: Getting challenge parameters")
             challenge_data = await self._get_challenge()
-            logger.debug(f"Received challenge data with ID: {challenge_data['id']}")
+            logger.debug("Received challenge data")
 
             # Step 2: Calculate hash
             logger.debug("Step 2: Calculating password hash")
