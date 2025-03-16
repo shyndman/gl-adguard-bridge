@@ -223,8 +223,10 @@ class AdGuardProxy:
             except Exception:
                 logger.debug(f"  Content: [non-JSON data, {len(response.content)} bytes]")
 
-        # Remove content-length header since response may have been modified
+        # Remove any gzip-related headers since response may have been decompressed
+        response.headers.pop("content-encoding", None)
         response.headers.pop("content-length", None)
+        response.headers.pop("vary", None)
 
         # Create a Starlette response from the httpx response
         return Response(
