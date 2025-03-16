@@ -113,7 +113,9 @@ class RouterAuth:
         payload = {
             "jsonrpc": "2.0",
             "method": "challenge",
-            "params": None,
+            "params": {
+                "username": self.settings.router_username,
+            },
             "id": str(int(time.time() * 1000)),
         }
 
