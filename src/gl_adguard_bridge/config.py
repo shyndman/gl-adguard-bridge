@@ -40,7 +40,7 @@ class Settings(BaseModel):
         https://web.archive.org/web/20240121142533/https://dev.gl-inet.com/router-4.x-api/
         The HTTP request path for all APIs is /rpc
         """
-        return f"http://{self.router_host}/rpc"
+        return f"https://{self.router_host}/rpc"
 
 
 def get_settings() -> Settings:
