@@ -1,7 +1,7 @@
 """Authentication module for GL.iNet router authentication."""
 
 import hashlib
-import hmac
+from passlib.hash import md5_crypt, sha256_crypt, sha512_crypt
 import time
 from typing import Any, Dict
 
@@ -69,7 +69,9 @@ class RouterAuth:
             # Step 2: Calculate hash
             logger.debug("Step 2: Calculating password hash")
             password_hash = self._calculate_password_hash(
-                challenge_data["salt"], self.settings.router_password
+                challenge_data["alg"],
+                challenge_data["salt"],
+                challenge_data["nonce"],
             )
             logger.debug("Password hash calculated successfully")
 
@@ -137,21 +139,36 @@ class RouterAuth:
 
         return result["result"]
 
-    def _calculate_password_hash(self, salt: str, password: str) -> str:
+    def _calculate_password_hash(
+        self,
+        alg: int,
+        salt: str,
+        nonce: str,
+    ) -> str:
         """Calculate password hash using salt.
 
         Args:
+            alg: Algorithm to use
             salt: Salt string from challenge
-            password: User password
+            nonce: Nonce string from challenge
 
         Returns:
             str: Hashed password
         """
-        # Create HMAC using SHA-256
-        key = salt.encode()
-        msg = password.encode()
-        digest = hmac.new(key, msg, digestmod=hashlib.sha256).hexdigest()
-        return digest
+        password = self.settings.router_password
+        match alg:
+            case 1:
+                cipher_password = md5_crypt.using(salt=salt).hash(password)
+            case 5:
+                cipher_password = sha256_crypt.using(salt=salt, rounds=5000).hash(password)
+            case 6:
+                cipher_password = sha512_crypt.using(salt=salt, rounds=5000).hash(password)
+            case _:
+                raise ValueError(f"Unsupported algorithm: {alg}")
+
+        return hashlib.md5(
+            f"{self.settings.router_username}:{cipher_password}:{nonce}".encode()
+        ).hexdigest()
 
     async def _login(self, username: str, password_hash: str) -> Dict[str, Any]:
         """Login to the router using the challenge ID and password hash.
