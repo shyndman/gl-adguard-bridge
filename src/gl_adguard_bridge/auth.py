@@ -58,17 +58,23 @@ class RouterAuth:
             str: The session ID (sid) from the authentication response
         """
         logger.info(f"Authenticating with GL.iNet router at {self.settings.router_host}")
+        logger.debug(f"Starting authentication process with router at {self.settings.router_host}")
 
         try:
             # Step 1: Get challenge parameters
+            logger.debug("Step 1: Getting challenge parameters")
             challenge_data = await self._get_challenge()
+            logger.debug(f"Received challenge data with ID: {challenge_data['id']}")
 
             # Step 2: Calculate hash
+            logger.debug("Step 2: Calculating password hash")
             password_hash = self._calculate_password_hash(
                 challenge_data["salt"], self.settings.router_password
             )
+            logger.debug("Password hash calculated successfully")
 
             # Step 3: Login with hash
+            logger.debug("Step 3: Sending login request with password hash")
             login_response = await self._login(
                 challenge_id=challenge_data["id"],
                 username=self.settings.router_username,
@@ -76,11 +82,13 @@ class RouterAuth:
             )
 
             # Step 4: Extract and store session ID
+            logger.debug("Step 4: Extracting session ID from login response")
             if "sid" not in login_response:
                 logger.error(f"GL.iNet authentication failed: {login_response}")
                 raise ValueError("GL.iNet authentication response did not contain a session ID")
 
             self.sid = login_response["sid"]
+            logger.debug(f"Session ID retrieved successfully: {self.sid[:5]}...")
             logger.info("GL.iNet router authentication successful")
             return self.sid
 
@@ -109,6 +117,9 @@ class RouterAuth:
             "id": str(int(time.time() * 1000)),
         }
 
+        # Log the request payload
+        logger.debug(f"Sending challenge request: {payload}")
+
         response = await self.client.post(
             self.settings.router_rpc_url,
             json=payload,
@@ -117,6 +128,9 @@ class RouterAuth:
         response.raise_for_status()
 
         result = response.json()
+        # Log the response
+        logger.debug(f"Received challenge response: {result}")
+
         if "result" not in result:
             raise ValueError(f"Invalid challenge response: {result}")
 
@@ -157,6 +171,15 @@ class RouterAuth:
             "id": str(int(time.time() * 1000)),
         }
 
+        # Create a copy of the payload with redacted password hash for logging
+        log_payload = {**payload}
+        if "params" in log_payload and "password" in log_payload["params"]:
+            log_payload["params"] = {**log_payload["params"]}
+            log_payload["params"]["password"] = "[REDACTED]"
+
+        # Log the request payload with redacted password
+        logger.debug(f"Sending login request: {log_payload}")
+
         response = await self.client.post(
             self.settings.router_rpc_url,
             json=payload,
@@ -165,6 +188,9 @@ class RouterAuth:
         response.raise_for_status()
 
         result = response.json()
+        # Log the response
+        logger.debug(f"Received login response: {result}")
+
         if "result" not in result:
             raise ValueError(f"Invalid login response: {result}")
 

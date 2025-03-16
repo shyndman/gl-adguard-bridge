@@ -46,10 +46,7 @@ class Server:
                 Route(
                     "/{path:path}",
                     self.handle_request,
-                    methods=[
-                        "GET", "POST", "PUT", "DELETE",
-                        "PATCH", "HEAD", "OPTIONS"
-                    ]
+                    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
                 ),
             ],
             on_startup=[self.startup],
@@ -63,6 +60,14 @@ class Server:
             f"{self.settings.host}:{self.settings.port}"
         )
         logger.info(f"Forwarding requests to {self.settings.adguard_url}")
+
+        if self.settings.log_level == "DEBUG":
+            logger.info(
+                "DEBUG logging enabled - authentication request details will be logged "
+                "with sensitive data redacted"
+            )
+        else:
+            logger.info("Set LOG_LEVEL=DEBUG to see detailed authentication requests and responses")
 
         # Authenticate with the router
         try:

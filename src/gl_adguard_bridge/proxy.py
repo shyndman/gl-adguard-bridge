@@ -33,17 +33,13 @@ class AdGuardProxy:
                 f"{self.settings.router_ssl_verify}"
             )
             self.client = httpx.AsyncClient(
-                base_url=settings.adguard_url,
-                verify=self.settings.router_ssl_verify
+                base_url=settings.adguard_url, verify=self.settings.router_ssl_verify
             )
         elif self.settings.router_ssl_verify is False:
             logger.warning(
                 "SSL certificate verification is disabled for AdGuard. This is insecure!"
             )
-            self.client = httpx.AsyncClient(
-                base_url=settings.adguard_url,
-                verify=False
-            )
+            self.client = httpx.AsyncClient(base_url=settings.adguard_url, verify=False)
         else:
             logger.debug("Using system CA certificates for AdGuard SSL verification")
             self.client = httpx.AsyncClient(base_url=settings.adguard_url)
@@ -61,6 +57,8 @@ class AdGuardProxy:
         path = request.url.path
         query_params = dict(request.query_params)
 
+        logger.debug(f"Handling {request.method} request to {path}")
+
         # Get request body if present
         body = await request.body() if request.method in ["POST", "PUT", "PATCH"] else None
 
@@ -70,9 +68,14 @@ class AdGuardProxy:
 
         # Add GL.iNet authentication cookie
         cookies = self.auth.get_auth_cookie()
+        if cookies:
+            logger.debug("Using existing authentication session")
+        else:
+            logger.debug("No authentication session available")
 
         try:
             # First attempt
+            logger.debug("Attempting to forward request to AdGuard Home")
             return await self._forward_request(
                 method=request.method,
                 path=path,
@@ -88,8 +91,10 @@ class AdGuardProxy:
                 logger.info(
                     "Authentication failed, attempting to reauthenticate with GL.iNet router"
                 )
+                logger.debug("Received 401 Unauthorized, initiating reauthentication")
                 await self.auth.authenticate()
                 cookies = self.auth.get_auth_cookie()
+                logger.debug("Reauthentication completed, retrying request")
 
                 # Second attempt after reauthentication
                 return await self._forward_request(
@@ -102,6 +107,7 @@ class AdGuardProxy:
                 )
             else:
                 # For other errors, return the error response
+                logger.debug(f"Received error response: {e.response.status_code}")
                 return Response(
                     content=e.response.content,
                     status_code=e.response.status_code,
@@ -150,6 +156,47 @@ class AdGuardProxy:
         """
         logger.debug(f"Forwarding {method} request to {path}")
 
+        # Create redacted versions of headers and cookies for logging
+        log_headers = {**headers}
+        log_cookies = {**cookies}
+
+        # Redact sensitive headers if they exist
+        sensitive_headers = ["authorization", "cookie", "set-cookie"]
+        for header in sensitive_headers:
+            if header in log_headers:
+                log_headers[header] = "[REDACTED]"
+
+        # Log request details at DEBUG level
+        logger.debug(
+            f"Request details:\n"
+            f"  Method: {method}\n"
+            f"  Path: {path}\n"
+            f"  Headers: {log_headers}\n"
+            f"  Cookies: {log_cookies}\n"
+            f"  Params: {params}"
+        )
+
+        # Log body for JSON requests at DEBUG level, with potential password redaction
+        if body and "application/json" in headers.get("content-type", ""):
+            try:
+                import json
+
+                log_body = json.loads(body)
+
+                # Redact password fields in JSON body
+                if isinstance(log_body, dict):
+                    if "password" in log_body:
+                        log_body["password"] = "[REDACTED]"
+                    if "params" in log_body and isinstance(log_body["params"], dict):
+                        if "password" in log_body["params"]:
+                            log_body["params"]["password"] = "[REDACTED]"
+
+                logger.debug(f"  Body: {log_body}")
+            except Exception:
+                logger.debug(f"  Body: [binary data, {len(body)} bytes]")
+        elif body:
+            logger.debug(f"  Body: [binary data, {len(body)} bytes]")
+
         response = await self.client.request(
             method=method,
             url=path,
@@ -161,6 +208,20 @@ class AdGuardProxy:
         )
 
         response.raise_for_status()
+
+        # Log response at DEBUG level
+        logger.debug(
+            f"Response from AdGuard Home:\n"
+            f"  Status: {response.status_code}\n"
+            f"  Headers: {dict(response.headers)}"
+        )
+
+        # Log response content for JSON responses
+        if "application/json" in response.headers.get("content-type", ""):
+            try:
+                logger.debug(f"  Content: {response.json()}")
+            except Exception:
+                logger.debug(f"  Content: [non-JSON data, {len(response.content)} bytes]")
 
         # Create a Starlette response from the httpx response
         return Response(

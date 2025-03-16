@@ -21,9 +21,9 @@ def _strtobool(val: str) -> bool:
         ValueError: If the string doesn't represent a boolean value
     """
     val = val.lower()
-    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+    if val in ("y", "yes", "t", "true", "on", "1"):
         return True
-    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+    elif val in ("n", "no", "f", "false", "off", "0"):
         return False
     else:
         raise ValueError(f"Invalid truth value: {val}")
@@ -34,23 +34,18 @@ class Settings(BaseModel):
 
     # Router authentication settings
     router_host: str = Field(
-        ...,
-        description="Hostname or IP address of the GL.iNet router (e.g., 192.168.8.1)"
+        ..., description="Hostname or IP address of the GL.iNet router (e.g., 192.168.8.1)"
     )
     router_username: str = Field(
-        "root",
-        description="Username for GL.iNet router authentication (usually 'root')"
+        "root", description="Username for GL.iNet router authentication (usually 'root')"
     )
-    router_password: str = Field(
-        ...,
-        description="Password for GL.iNet router authentication"
-    )
+    router_password: str = Field(..., description="Password for GL.iNet router authentication")
     router_ssl_verify: Union[bool, str] = Field(
         True,
         description=(
             "Whether to verify SSL certificates for router connections "
             "(True, False, or path to CA bundle)"
-        )
+        ),
     )
 
     # AdGuard Home settings
