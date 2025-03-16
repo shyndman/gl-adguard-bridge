@@ -1,6 +1,6 @@
 [project]
 name = "gl-adguard-bridge"
-version = "0.1.0"
+version = "0.0.0"
 description = "HTTP proxy server to support Home Assistant integration with AdGuard Home behind GL.iNet routers requiring authentication"
 readme = "README.md"
 requires-python = ">=3.9"
