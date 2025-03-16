@@ -76,7 +76,6 @@ class RouterAuth:
             # Step 3: Login with hash
             logger.debug("Step 3: Sending login request with password hash")
             login_response = await self._login(
-                challenge_id=challenge_data["id"],
                 username=self.settings.router_username,
                 password_hash=password_hash,
             )
@@ -92,15 +91,15 @@ class RouterAuth:
             logger.info("GL.iNet router authentication successful")
             return self.sid
 
-        except httpx.TransportError as e:
-            logger.error(f"SSL error connecting to GL.iNet router: {e}")
+        except httpx.TransportError:
+            logger.exception("SSL error connecting to GL.iNet router")
             logger.info(
                 "If the router uses a self-signed certificate, "
                 "set ROUTER_SSL_VERIFY=False or provide a CA bundle"
             )
             raise
-        except Exception as e:
-            logger.error(f"GL.iNet router authentication request failed: {e}")
+        except Exception:
+            logger.exception("GL.iNet router authentication request failed")
             raise
 
     async def _get_challenge(self) -> Dict[str, Any]:
@@ -154,7 +153,7 @@ class RouterAuth:
         digest = hmac.new(key, msg, digestmod=hashlib.sha256).hexdigest()
         return digest
 
-    async def _login(self, challenge_id: str, username: str, password_hash: str) -> Dict[str, Any]:
+    async def _login(self, username: str, password_hash: str) -> Dict[str, Any]:
         """Login to the router using the challenge ID and password hash.
 
         Args:
@@ -169,18 +168,12 @@ class RouterAuth:
         payload = {
             "jsonrpc": "2.0",
             "method": "login",
-            "params": {"id": challenge_id, "username": username, "password": password_hash},
+            "params": {"username": username, "hash": password_hash},
             "id": str(int(time.time() * 1000)),
         }
 
-        # Create a copy of the payload with redacted password hash for logging
-        log_payload = {**payload}
-        if "params" in log_payload and "password" in log_payload["params"]:
-            log_payload["params"] = {**log_payload["params"]}
-            log_payload["params"]["password"] = "[REDACTED]"
-
         # Log the request payload with redacted password
-        logger.debug(f"Sending login request: {log_payload}")
+        logger.debug(f"Sending login request: {payload}")
 
         response = await self.client.post(
             self.settings.router_rpc_url,
